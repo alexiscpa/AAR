@@ -7,6 +7,12 @@ settings = get_settings()
 # 支援 SQLite (本地測試) 和 PostgreSQL (生產環境)
 database_url = settings.database_url
 
+# 自動轉換 PostgreSQL URL 為 asyncpg 格式
+if database_url.startswith("postgresql://"):
+    database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+elif database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql+asyncpg://", 1)
+
 # SQLite 需要特殊處理
 if database_url.startswith("sqlite"):
     engine = create_async_engine(
