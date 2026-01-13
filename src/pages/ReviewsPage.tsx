@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { useReviewLogs, useCourses, useCreateReviewLog, useDeleteReviewLog } from "@/lib/hooks";
+import { useReviewLogs, useCourses, useCreateReviewLog, useUpdateReviewLog, useDeleteReviewLog } from "@/lib/hooks";
+import type { ReviewLog } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,7 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FileText, Plus, Loader2, Trash2, Filter } from "lucide-react";
+import { FileText, Plus, Loader2, Trash2, Filter, Pencil } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { formatDate, getEmotionalIndicator } from "@/lib/utils";
 
@@ -41,11 +42,14 @@ export default function ReviewsPage() {
   const { data: reviewLogsData, isLoading } = useReviewLogs();
   const { data: courses } = useCourses();
   const createMutation = useCreateReviewLog();
+  const updateMutation = useUpdateReviewLog();
   const deleteMutation = useDeleteReviewLog();
   const { toast } = useToast();
 
   const [courseFilter, setCourseFilter] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingLog, setEditingLog] = useState<ReviewLog | null>(null);
   const [newLog, setNewLog] = useState({
     course_id: 0,
     title: "",
@@ -94,6 +98,37 @@ export default function ReviewsPage() {
       toast({ title: "復盤日誌已刪除" });
     } catch (error) {
       toast({ title: "刪除失敗", variant: "destructive" });
+    }
+  };
+
+  const handleEdit = (log: ReviewLog) => {
+    setEditingLog(log);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdate = async () => {
+    if (!editingLog) return;
+    if (!editingLog.title.trim()) {
+      toast({ title: "請輸入標題", variant: "destructive" });
+      return;
+    }
+
+    try {
+      await updateMutation.mutateAsync({
+        id: editingLog.id,
+        data: {
+          title: editingLog.title,
+          reflection: editingLog.reflection,
+          application_insights: editingLog.application_insights,
+          key_takeaways: editingLog.key_takeaways,
+          emotional_indicator: editingLog.emotional_indicator,
+        },
+      });
+      toast({ title: "復盤日誌已更新", variant: "success" });
+      setIsEditDialogOpen(false);
+      setEditingLog(null);
+    } catch (error) {
+      toast({ title: "更新失敗", variant: "destructive" });
     }
   };
 
@@ -235,6 +270,97 @@ export default function ReviewsPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Edit Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>編輯復盤日誌</DialogTitle>
+              <DialogDescription>修改您的學習反思和應用心得</DialogDescription>
+            </DialogHeader>
+            {editingLog && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>標題 *</Label>
+                  <Input
+                    value={editingLog.title}
+                    onChange={(e) => setEditingLog({ ...editingLog, title: e.target.value })}
+                    placeholder="復盤日誌標題"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>學習反思</Label>
+                  <Textarea
+                    value={editingLog.reflection || ""}
+                    onChange={(e) =>
+                      setEditingLog({ ...editingLog, reflection: e.target.value })
+                    }
+                    placeholder="這次學習有什麼收穫？有哪些需要改進的地方？"
+                    rows={4}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>應用心得</Label>
+                  <Textarea
+                    value={editingLog.application_insights || ""}
+                    onChange={(e) =>
+                      setEditingLog({ ...editingLog, application_insights: e.target.value })
+                    }
+                    placeholder="學到的知識可以如何應用？有什麼實際案例？"
+                    rows={3}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>關鍵收穫</Label>
+                  <Textarea
+                    value={editingLog.key_takeaways || ""}
+                    onChange={(e) =>
+                      setEditingLog({ ...editingLog, key_takeaways: e.target.value })
+                    }
+                    placeholder="最重要的幾點收穫是什麼？"
+                    rows={2}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>情感指標</Label>
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4, 5].map((value) => {
+                      const { emoji } = getEmotionalIndicator(value);
+                      return (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() =>
+                            setEditingLog({ ...editingLog, emotional_indicator: value })
+                          }
+                          className={`text-3xl p-2 rounded-lg transition-all ${
+                            editingLog.emotional_indicator === value
+                              ? "bg-primary/20 scale-110"
+                              : "hover:bg-muted"
+                          }`}
+                        >
+                          {emoji}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                取消
+              </Button>
+              <Button onClick={handleUpdate} disabled={updateMutation.isPending}>
+                {updateMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  "儲存"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Filters */}
@@ -315,6 +441,14 @@ export default function ReviewsPage() {
                       <span className="text-sm text-muted-foreground">
                         {formatDate(review_log.review_date)}
                       </span>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEdit(review_log)}
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button
@@ -342,6 +476,7 @@ export default function ReviewsPage() {
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
