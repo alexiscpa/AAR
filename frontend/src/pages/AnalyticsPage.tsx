@@ -45,8 +45,8 @@ export default function AnalyticsPage() {
   // Course status data for pie chart
   const courseStatusData = [
     { name: "已完成", value: courseStats?.completed || 0, color: "#22c55e" },
-    { name: "進行中", value: courseStats?.inProgress || 0, color: "#3b82f6" },
-    { name: "未開始", value: courseStats?.notStarted || 0, color: "#94a3b8" },
+    { name: "進行中", value: courseStats?.in_progress || 0, color: "#3b82f6" },
+    { name: "未開始", value: courseStats?.not_started || 0, color: "#94a3b8" },
   ];
 
   // Course progress data for bar chart
