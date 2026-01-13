@@ -1,8 +1,21 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link } from "wouter";
 import { useReviewLogs, useCourses, useCreateReviewLog, useUpdateReviewLog, useDeleteReviewLog } from "@/lib/hooks";
 import type { ReviewLog } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  isSameMonth,
+  isSameDay,
+  addMonths,
+  subMonths,
+  getDay,
+  parseISO,
+} from "date-fns";
+import { zhTW } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,7 +47,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FileText, Plus, Loader2, Trash2, Filter, Pencil } from "lucide-react";
+import { FileText, Plus, Loader2, Trash2, Filter, Pencil, ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { formatDate, getEmotionalIndicator } from "@/lib/utils";
 
@@ -50,6 +63,25 @@ export default function ReviewsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingLog, setEditingLog] = useState<ReviewLog | null>(null);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  // 取得當月有復盤的日期
+  const reviewDates = useMemo(() => {
+    if (!reviewLogsData) return new Set<string>();
+    return new Set(
+      reviewLogsData.map(({ review_log }) =>
+        format(parseISO(review_log.review_date), "yyyy-MM-dd")
+      )
+    );
+  }, [reviewLogsData]);
+
+  // 計算當月復盤天數
+  const currentMonthReviewCount = useMemo(() => {
+    if (!reviewLogsData) return 0;
+    return reviewLogsData.filter(({ review_log }) =>
+      isSameMonth(parseISO(review_log.review_date), currentMonth)
+    ).length;
+  }, [reviewLogsData, currentMonth]);
   const [newLog, setNewLog] = useState({
     course_id: 0,
     title: "",
@@ -363,25 +395,112 @@ export default function ReviewsPage() {
         </Dialog>
       </div>
 
-      {/* Filters */}
-      <Card className="card-elegant p-4">
-        <div className="flex gap-4">
-          <Select value={courseFilter} onValueChange={setCourseFilter}>
-            <SelectTrigger className="w-[200px]">
-              <Filter className="w-4 h-4 mr-2" />
-              <SelectValue placeholder="篩選課程" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">全部課程</SelectItem>
-              {courses?.map((course) => (
-                <SelectItem key={course.id} value={course.id.toString()}>
-                  {course.title}
-                </SelectItem>
+      {/* Filters and Calendar */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Filters */}
+        <Card className="card-elegant p-4 lg:col-span-2">
+          <div className="flex gap-4">
+            <Select value={courseFilter} onValueChange={setCourseFilter}>
+              <SelectTrigger className="w-[200px]">
+                <Filter className="w-4 h-4 mr-2" />
+                <SelectValue placeholder="篩選課程" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部課程</SelectItem>
+                {courses?.map((course) => (
+                  <SelectItem key={course.id} value={course.id.toString()}>
+                    {course.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </Card>
+
+        {/* Mini Calendar */}
+        <Card className="card-elegant p-4">
+          <div className="space-y-3">
+            {/* Calendar Header */}
+            <div className="flex items-center justify-between">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-primary" />
+                <span className="font-medium">
+                  {format(currentMonth, "yyyy年 M月", { locale: zhTW })}
+                </span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+
+            {/* Weekday Headers */}
+            <div className="grid grid-cols-7 gap-1 text-center text-xs text-muted-foreground">
+              {["日", "一", "二", "三", "四", "五", "六"].map((day) => (
+                <div key={day} className="py-1">{day}</div>
               ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </Card>
+            </div>
+
+            {/* Calendar Days */}
+            <div className="grid grid-cols-7 gap-1">
+              {(() => {
+                const monthStart = startOfMonth(currentMonth);
+                const monthEnd = endOfMonth(currentMonth);
+                const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+                const startPadding = getDay(monthStart);
+
+                return (
+                  <>
+                    {/* Empty cells for padding */}
+                    {Array.from({ length: startPadding }).map((_, i) => (
+                      <div key={`pad-${i}`} className="aspect-square" />
+                    ))}
+                    {/* Actual days */}
+                    {days.map((day) => {
+                      const dateStr = format(day, "yyyy-MM-dd");
+                      const hasReview = reviewDates.has(dateStr);
+                      const isToday = isSameDay(day, new Date());
+
+                      return (
+                        <div
+                          key={dateStr}
+                          className={`aspect-square flex items-center justify-center text-xs rounded-md transition-colors
+                            ${hasReview
+                              ? "bg-primary text-primary-foreground font-medium"
+                              : "hover:bg-muted"
+                            }
+                            ${isToday && !hasReview ? "ring-1 ring-primary" : ""}
+                          `}
+                          title={hasReview ? `${format(day, "M/d")} 有復盤紀錄` : ""}
+                        >
+                          {format(day, "d")}
+                        </div>
+                      );
+                    })}
+                  </>
+                );
+              })()}
+            </div>
+
+            {/* Summary */}
+            <div className="pt-2 border-t text-center">
+              <span className="text-sm text-muted-foreground">
+                本月復盤 <span className="font-semibold text-primary">{currentMonthReviewCount}</span> 次
+              </span>
+            </div>
+          </div>
+        </Card>
+      </div>
 
       {/* Review Logs List */}
       {isLoading ? (
