@@ -1,0 +1,122 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0.98 0.001 286.375;
+    --foreground: 0.235 0.015 65;
+    --card: 1 0 0;
+    --card-foreground: 0.235 0.015 65;
+    --popover: 1 0 0;
+    --popover-foreground: 0.235 0.015 65;
+    --primary: 0.623 0.214 259.815;
+    --primary-foreground: 1 0 0;
+    --secondary: 0.65 0.2 280;
+    --secondary-foreground: 1 0 0;
+    --muted: 0.95 0.005 286;
+    --muted-foreground: 0.552 0.016 285.938;
+    --accent: 0.8 0.15 45;
+    --accent-foreground: 0.235 0.015 65;
+    --destructive: 0.55 0.2 25;
+    --destructive-foreground: 1 0 0;
+    --border: 0.92 0.004 286.32;
+    --input: 0.92 0.004 286.32;
+    --ring: 0.623 0.214 259.815;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 0.15 0.01 286;
+    --foreground: 0.95 0.005 286;
+    --card: 0.2 0.01 286;
+    --card-foreground: 0.95 0.005 286;
+    --popover: 0.2 0.01 286;
+    --popover-foreground: 0.95 0.005 286;
+    --primary: 0.7 0.18 259.815;
+    --primary-foreground: 0.15 0.01 286;
+    --secondary: 0.72 0.16 280;
+    --secondary-foreground: 0.15 0.01 286;
+    --muted: 0.25 0.01 286;
+    --muted-foreground: 0.65 0.01 286;
+    --accent: 0.75 0.12 45;
+    --accent-foreground: 0.15 0.01 286;
+    --destructive: 0.5 0.18 25;
+    --destructive-foreground: 0.95 0.005 286;
+    --border: 0.3 0.01 286;
+    --input: 0.3 0.01 286;
+    --ring: 0.7 0.18 259.815;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display tracking-display;
+  }
+}
+
+@layer components {
+  .card-elegant {
+    @apply bg-card border border-border rounded-lg shadow-elegant hover:shadow-elegant-lg transition-shadow duration-200;
+  }
+
+  .btn-primary {
+    @apply bg-primary text-primary-foreground rounded-lg px-4 py-2 font-medium transition-all duration-200 hover:opacity-90 active:scale-[0.98];
+  }
+
+  .btn-secondary {
+    @apply bg-secondary text-secondary-foreground rounded-lg px-4 py-2 font-medium transition-all duration-200 hover:opacity-90 active:scale-[0.98];
+  }
+
+  .btn-ghost {
+    @apply bg-transparent text-foreground rounded-lg px-4 py-2 font-medium transition-all duration-200 hover:bg-muted active:scale-[0.98];
+  }
+
+  .progress-bar {
+    @apply h-2 bg-muted rounded-full overflow-hidden;
+  }
+
+  .progress-fill {
+    @apply h-full bg-gradient-to-r from-primary to-secondary transition-all duration-300;
+  }
+
+  .input-elegant {
+    @apply w-full px-4 py-2 bg-background border border-input rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all duration-200;
+  }
+
+  .badge-priority-high {
+    @apply bg-priority-high/10 text-priority-high px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-priority-medium {
+    @apply bg-priority-medium/10 text-priority-medium px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-priority-low {
+    @apply bg-priority-low/10 text-priority-low px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .status-completed {
+    @apply bg-status-completed/10 text-status-completed;
+  }
+
+  .status-in-progress {
+    @apply bg-status-in-progress/10 text-status-in-progress;
+  }
+
+  .status-not-started {
+    @apply bg-status-not-started/10 text-status-not-started;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
