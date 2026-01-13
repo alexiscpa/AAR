@@ -1,3 +1,4 @@
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,10 +21,22 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS middleware
+# CORS middleware - 支援本地開發和 Zeabur 部署
+allowed_origins = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+]
+# 從環境變數讀取額外的允許來源
+if os.getenv("FRONTEND_URL"):
+    allowed_origins.append(os.getenv("FRONTEND_URL"))
+# Zeabur 部署時允許所有 zeabur.app 子網域
+if os.getenv("ZEABUR_ENVIRONMENT"):
+    allowed_origins.append("https://*.zeabur.app")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=allowed_origins,
+    allow_origin_regex=r"https://.*\.zeabur\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
