@@ -395,30 +395,138 @@ export default function ReviewsPage() {
         </Dialog>
       </div>
 
-      {/* Filters and Calendar */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Filters */}
-        <Card className="card-elegant p-4 lg:col-span-2">
-          <div className="flex gap-4">
-            <Select value={courseFilter} onValueChange={setCourseFilter}>
-              <SelectTrigger className="w-[200px]">
-                <Filter className="w-4 h-4 mr-2" />
-                <SelectValue placeholder="篩選課程" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">全部課程</SelectItem>
-                {courses?.map((course) => (
-                  <SelectItem key={course.id} value={course.id.toString()}>
-                    {course.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      {/* Filters */}
+      <Card className="card-elegant p-4">
+        <div className="flex flex-wrap gap-4 items-center justify-between">
+          <Select value={courseFilter} onValueChange={setCourseFilter}>
+            <SelectTrigger className="w-[200px]">
+              <Filter className="w-4 h-4 mr-2" />
+              <SelectValue placeholder="篩選課程" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">全部課程</SelectItem>
+              {courses?.map((course) => (
+                <SelectItem key={course.id} value={course.id.toString()}>
+                  {course.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="text-sm text-muted-foreground">
+            共 <span className="font-semibold text-foreground">{filteredLogs?.length || 0}</span> 筆復盤紀錄
           </div>
-        </Card>
+        </div>
+      </Card>
 
-        {/* Mini Calendar */}
-        <Card className="card-elegant p-4">
+      {/* Main Content: Review Logs + Calendar */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Review Logs List - Takes 3/4 */}
+        <div className="lg:col-span-3">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : filteredLogs?.length === 0 ? (
+            <Card className="card-elegant p-12 text-center">
+              <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">沒有復盤日誌</h3>
+              <p className="text-muted-foreground mb-4">
+                開始記錄您的學習反思
+              </p>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {filteredLogs?.map(({ review_log, course }) => {
+                const emotion = getEmotionalIndicator(review_log.emotional_indicator);
+                return (
+                  <Card key={review_log.id} className="card-elegant overflow-hidden">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-1">
+                          <CardTitle className="text-lg">{review_log.title}</CardTitle>
+                          {course && (
+                            <Link href={`/courses/${course.id}`}>
+                              <span className="text-sm text-primary hover:underline">
+                                {course.title}
+                              </span>
+                            </Link>
+                          )}
+                        </div>
+                        <span className="text-3xl" title={emotion.label}>
+                          {emotion.emoji}
+                        </span>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="space-y-3">
+                        {review_log.reflection && (
+                          <div>
+                            <h4 className="text-sm font-medium text-muted-foreground mb-1">
+                              反思
+                            </h4>
+                            <p className="text-sm line-clamp-3">{review_log.reflection}</p>
+                          </div>
+                        )}
+                        {review_log.key_takeaways && (
+                          <div>
+                            <h4 className="text-sm font-medium text-muted-foreground mb-1">
+                              關鍵收穫
+                            </h4>
+                            <p className="text-sm line-clamp-2">{review_log.key_takeaways}</p>
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between pt-2 border-t">
+                          <span className="text-sm text-muted-foreground">
+                            {formatDate(review_log.review_date)}
+                          </span>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEdit(review_log)}
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>確認刪除？</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    確定要刪除這個復盤日誌嗎？
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>取消</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDelete(review_log.id)}
+                                  >
+                                    刪除
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Mini Calendar - Takes 1/4 */}
+        <Card className="card-elegant p-4 h-fit">
           <div className="space-y-3">
             {/* Calendar Header */}
             <div className="flex items-center justify-between">
@@ -501,109 +609,6 @@ export default function ReviewsPage() {
           </div>
         </Card>
       </div>
-
-      {/* Review Logs List */}
-      {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      ) : filteredLogs?.length === 0 ? (
-        <Card className="card-elegant p-12 text-center">
-          <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold mb-2">沒有復盤日誌</h3>
-          <p className="text-muted-foreground mb-4">
-            開始記錄您的學習反思
-          </p>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {filteredLogs?.map(({ review_log, course }) => {
-            const emotion = getEmotionalIndicator(review_log.emotional_indicator);
-            return (
-              <Card key={review_log.id} className="card-elegant overflow-hidden">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <CardTitle className="text-lg">{review_log.title}</CardTitle>
-                      {course && (
-                        <Link href={`/courses/${course.id}`}>
-                          <span className="text-sm text-primary hover:underline">
-                            {course.title}
-                          </span>
-                        </Link>
-                      )}
-                    </div>
-                    <span className="text-3xl" title={emotion.label}>
-                      {emotion.emoji}
-                    </span>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="space-y-3">
-                    {review_log.reflection && (
-                      <div>
-                        <h4 className="text-sm font-medium text-muted-foreground mb-1">
-                          反思
-                        </h4>
-                        <p className="text-sm line-clamp-3">{review_log.reflection}</p>
-                      </div>
-                    )}
-                    {review_log.key_takeaways && (
-                      <div>
-                        <h4 className="text-sm font-medium text-muted-foreground mb-1">
-                          關鍵收穫
-                        </h4>
-                        <p className="text-sm line-clamp-2">{review_log.key_takeaways}</p>
-                      </div>
-                    )}
-                    <div className="flex items-center justify-between pt-2 border-t">
-                      <span className="text-sm text-muted-foreground">
-                        {formatDate(review_log.review_date)}
-                      </span>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEdit(review_log)}
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>確認刪除？</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              確定要刪除這個復盤日誌嗎？
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>取消</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleDelete(review_log.id)}
-                            >
-                              刪除
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }
