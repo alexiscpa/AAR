@@ -1,7 +1,21 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link } from "wouter";
-import { useReviewLogs, useCourses, useCreateReviewLog, useDeleteReviewLog } from "@/lib/hooks";
+import { useReviewLogs, useCourses, useCreateReviewLog, useUpdateReviewLog, useDeleteReviewLog } from "@/lib/hooks";
+import type { ReviewLog } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  isSameMonth,
+  isSameDay,
+  addMonths,
+  subMonths,
+  getDay,
+  parseISO,
+} from "date-fns";
+import { zhTW } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,7 +47,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FileText, Plus, Loader2, Trash2, Filter } from "lucide-react";
+import { FileText, Plus, Loader2, Trash2, Filter, Pencil, ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { formatDate, getEmotionalIndicator } from "@/lib/utils";
 
@@ -41,11 +55,33 @@ export default function ReviewsPage() {
   const { data: reviewLogsData, isLoading } = useReviewLogs();
   const { data: courses } = useCourses();
   const createMutation = useCreateReviewLog();
+  const updateMutation = useUpdateReviewLog();
   const deleteMutation = useDeleteReviewLog();
   const { toast } = useToast();
 
   const [courseFilter, setCourseFilter] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingLog, setEditingLog] = useState<ReviewLog | null>(null);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  // 取得當月有復盤的日期
+  const reviewDates = useMemo(() => {
+    if (!reviewLogsData) return new Set<string>();
+    return new Set(
+      reviewLogsData.map(({ review_log }) =>
+        format(parseISO(review_log.review_date), "yyyy-MM-dd")
+      )
+    );
+  }, [reviewLogsData]);
+
+  // 計算當月復盤天數
+  const currentMonthReviewCount = useMemo(() => {
+    if (!reviewLogsData) return 0;
+    return reviewLogsData.filter(({ review_log }) =>
+      isSameMonth(parseISO(review_log.review_date), currentMonth)
+    ).length;
+  }, [reviewLogsData, currentMonth]);
   const [newLog, setNewLog] = useState({
     course_id: 0,
     title: "",
@@ -94,6 +130,37 @@ export default function ReviewsPage() {
       toast({ title: "復盤日誌已刪除" });
     } catch (error) {
       toast({ title: "刪除失敗", variant: "destructive" });
+    }
+  };
+
+  const handleEdit = (log: ReviewLog) => {
+    setEditingLog(log);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdate = async () => {
+    if (!editingLog) return;
+    if (!editingLog.title.trim()) {
+      toast({ title: "請輸入標題", variant: "destructive" });
+      return;
+    }
+
+    try {
+      await updateMutation.mutateAsync({
+        id: editingLog.id,
+        data: {
+          title: editingLog.title,
+          reflection: editingLog.reflection,
+          application_insights: editingLog.application_insights,
+          key_takeaways: editingLog.key_takeaways,
+          emotional_indicator: editingLog.emotional_indicator,
+        },
+      });
+      toast({ title: "復盤日誌已更新", variant: "success" });
+      setIsEditDialogOpen(false);
+      setEditingLog(null);
+    } catch (error) {
+      toast({ title: "更新失敗", variant: "destructive" });
     }
   };
 
@@ -235,27 +302,205 @@ export default function ReviewsPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Edit Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>編輯復盤日誌</DialogTitle>
+              <DialogDescription>修改您的學習反思和應用心得</DialogDescription>
+            </DialogHeader>
+            {editingLog && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>標題 *</Label>
+                  <Input
+                    value={editingLog.title}
+                    onChange={(e) => setEditingLog({ ...editingLog, title: e.target.value })}
+                    placeholder="復盤日誌標題"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>學習反思</Label>
+                  <Textarea
+                    value={editingLog.reflection || ""}
+                    onChange={(e) =>
+                      setEditingLog({ ...editingLog, reflection: e.target.value })
+                    }
+                    placeholder="這次學習有什麼收穫？有哪些需要改進的地方？"
+                    rows={4}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>應用心得</Label>
+                  <Textarea
+                    value={editingLog.application_insights || ""}
+                    onChange={(e) =>
+                      setEditingLog({ ...editingLog, application_insights: e.target.value })
+                    }
+                    placeholder="學到的知識可以如何應用？有什麼實際案例？"
+                    rows={3}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>關鍵收穫</Label>
+                  <Textarea
+                    value={editingLog.key_takeaways || ""}
+                    onChange={(e) =>
+                      setEditingLog({ ...editingLog, key_takeaways: e.target.value })
+                    }
+                    placeholder="最重要的幾點收穫是什麼？"
+                    rows={2}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>情感指標</Label>
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4, 5].map((value) => {
+                      const { emoji } = getEmotionalIndicator(value);
+                      return (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() =>
+                            setEditingLog({ ...editingLog, emotional_indicator: value })
+                          }
+                          className={`text-3xl p-2 rounded-lg transition-all ${
+                            editingLog.emotional_indicator === value
+                              ? "bg-primary/20 scale-110"
+                              : "hover:bg-muted"
+                          }`}
+                        >
+                          {emoji}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                取消
+              </Button>
+              <Button onClick={handleUpdate} disabled={updateMutation.isPending}>
+                {updateMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  "儲存"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
-      {/* Filters */}
-      <Card className="card-elegant p-4">
-        <div className="flex gap-4">
-          <Select value={courseFilter} onValueChange={setCourseFilter}>
-            <SelectTrigger className="w-[200px]">
-              <Filter className="w-4 h-4 mr-2" />
-              <SelectValue placeholder="篩選課程" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">全部課程</SelectItem>
-              {courses?.map((course) => (
-                <SelectItem key={course.id} value={course.id.toString()}>
-                  {course.title}
-                </SelectItem>
+      {/* Filters and Calendar */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Filters */}
+        <Card className="card-elegant p-4 lg:col-span-2">
+          <div className="flex gap-4">
+            <Select value={courseFilter} onValueChange={setCourseFilter}>
+              <SelectTrigger className="w-[200px]">
+                <Filter className="w-4 h-4 mr-2" />
+                <SelectValue placeholder="篩選課程" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部課程</SelectItem>
+                {courses?.map((course) => (
+                  <SelectItem key={course.id} value={course.id.toString()}>
+                    {course.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </Card>
+
+        {/* Mini Calendar */}
+        <Card className="card-elegant p-4">
+          <div className="space-y-3">
+            {/* Calendar Header */}
+            <div className="flex items-center justify-between">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-primary" />
+                <span className="font-medium">
+                  {format(currentMonth, "yyyy年 M月", { locale: zhTW })}
+                </span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+
+            {/* Weekday Headers */}
+            <div className="grid grid-cols-7 gap-1 text-center text-xs text-muted-foreground">
+              {["日", "一", "二", "三", "四", "五", "六"].map((day) => (
+                <div key={day} className="py-1">{day}</div>
               ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </Card>
+            </div>
+
+            {/* Calendar Days */}
+            <div className="grid grid-cols-7 gap-1">
+              {(() => {
+                const monthStart = startOfMonth(currentMonth);
+                const monthEnd = endOfMonth(currentMonth);
+                const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+                const startPadding = getDay(monthStart);
+
+                return (
+                  <>
+                    {/* Empty cells for padding */}
+                    {Array.from({ length: startPadding }).map((_, i) => (
+                      <div key={`pad-${i}`} className="aspect-square" />
+                    ))}
+                    {/* Actual days */}
+                    {days.map((day) => {
+                      const dateStr = format(day, "yyyy-MM-dd");
+                      const hasReview = reviewDates.has(dateStr);
+                      const isToday = isSameDay(day, new Date());
+
+                      return (
+                        <div
+                          key={dateStr}
+                          className={`aspect-square flex items-center justify-center text-xs rounded-md transition-colors
+                            ${hasReview
+                              ? "bg-primary text-primary-foreground font-medium"
+                              : "hover:bg-muted"
+                            }
+                            ${isToday && !hasReview ? "ring-1 ring-primary" : ""}
+                          `}
+                          title={hasReview ? `${format(day, "M/d")} 有復盤紀錄` : ""}
+                        >
+                          {format(day, "d")}
+                        </div>
+                      );
+                    })}
+                  </>
+                );
+              })()}
+            </div>
+
+            {/* Summary */}
+            <div className="pt-2 border-t text-center">
+              <span className="text-sm text-muted-foreground">
+                本月復盤 <span className="font-semibold text-primary">{currentMonthReviewCount}</span> 次
+              </span>
+            </div>
+          </div>
+        </Card>
+      </div>
 
       {/* Review Logs List */}
       {isLoading ? (
@@ -315,6 +560,14 @@ export default function ReviewsPage() {
                       <span className="text-sm text-muted-foreground">
                         {formatDate(review_log.review_date)}
                       </span>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEdit(review_log)}
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button
@@ -342,6 +595,7 @@ export default function ReviewsPage() {
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
