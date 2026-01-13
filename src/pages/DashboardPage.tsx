@@ -74,7 +74,7 @@ export default function DashboardPage() {
             ) : (
               <>
                 <div className="text-3xl font-bold">
-                  {courseStats?.inProgress || 0}
+                  {courseStats?.in_progress || 0}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   持續學習中
