@@ -1,0 +1,41 @@
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.orm import DeclarativeBase
+from backend.config import get_settings
+
+settings = get_settings()
+
+# 支援 SQLite (本地測試) 和 PostgreSQL (生產環境)
+database_url = settings.database_url
+
+# SQLite 需要特殊處理
+if database_url.startswith("sqlite"):
+    engine = create_async_engine(
+        database_url,
+        echo=settings.debug,
+        connect_args={"check_same_thread": False},
+    )
+else:
+    engine = create_async_engine(
+        database_url,
+        echo=settings.debug,
+    )
+
+AsyncSessionLocal = async_sessionmaker(
+    engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+)
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+async def get_db():
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
