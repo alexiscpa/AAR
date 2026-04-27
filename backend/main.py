@@ -42,9 +42,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Root route
+@app.get("/")
+async def root():
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse(
+        "<h1>AAR 課程復盤系統</h1>"
+        "<p>API 服務運行中</p>"
+        "<ul>"
+        '<li><a href="/docs">API 文件 (Swagger UI)</a></li>'
+        '<li><a href="/redoc">API 文件 (ReDoc)</a></li>'
+        '<li><a href="/health">Health Check</a></li>'
+        "</ul>"
+    )
+
+
 # Health check
-@app.get("/api/health")
+@app.get("/health")
 async def health_check():
+    return {"status": "ok"}
+
+
+@app.get("/api/health")
+async def api_health_check():
     return {"status": "ok"}
 
 
