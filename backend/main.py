@@ -1,7 +1,10 @@
 import os
+import pathlib
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from backend.database import engine, Base
 from backend.routers import auth, courses, knowledge_points, action_items, review_logs, tags
 
@@ -42,27 +45,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Root route
-@app.get("/")
-async def root():
-    from fastapi.responses import HTMLResponse
-    return HTMLResponse(
-        "<h1>AAR 課程復盤系統</h1>"
-        "<p>API 服務運行中</p>"
-        "<ul>"
-        '<li><a href="/docs">API 文件 (Swagger UI)</a></li>'
-        '<li><a href="/redoc">API 文件 (ReDoc)</a></li>'
-        '<li><a href="/health">Health Check</a></li>'
-        "</ul>"
-    )
-
-
 # Health check
-@app.get("/health")
-async def health_check():
-    return {"status": "ok"}
-
-
 @app.get("/api/health")
 async def api_health_check():
     return {"status": "ok"}
@@ -75,3 +58,15 @@ app.include_router(knowledge_points.router, prefix="/api")
 app.include_router(action_items.router, prefix="/api")
 app.include_router(review_logs.router, prefix="/api")
 app.include_router(tags.router, prefix="/api")
+
+# Serve frontend static files (built by Vite into dist/)
+dist_dir = pathlib.Path(__file__).parent.parent / "dist"
+if dist_dir.exists():
+    app.mount("/assets", StaticFiles(directory=dist_dir / "assets"), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        file_path = dist_dir / full_path
+        if file_path.exists() and file_path.is_file():
+            return FileResponse(file_path)
+        return FileResponse(dist_dir / "index.html")
